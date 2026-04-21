@@ -27,5 +27,6 @@
   "showExcerpt": "原文の抜粋を表示",
   "translateTo": "翻訳先",
   "translatedLabel": "翻訳",
-  "translateFailed": "翻訳に失敗しました"
+  "translateFailed": "翻訳に失敗しました",
+  "aiAnswerLabel": "AI 回答"
 }

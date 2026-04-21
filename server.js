@@ -5,6 +5,7 @@ const { refreshContent, getCachedFiles } = require('./lib/github');
 const { buildIndex } = require('./lib/indexer');
 const { performSearch } = require('./lib/search');
 const { getUIStrings, translateText } = require('./lib/translator');
+const { generateAnswer } = require('./lib/ai');
 
 const crypto = require('crypto');
 
@@ -32,6 +33,18 @@ app.get('/api/search', async (req, res) => {
 
   try {
     const searchResults = performSearch(query.trim());
+
+    // Generate AI answer from matched documents (non-blocking)
+    if (searchResults.results.length > 0) {
+      try {
+        const aiAnswer = await generateAnswer(query.trim(), searchResults.results, lang);
+        if (aiAnswer) searchResults.aiAnswer = aiAnswer;
+      } catch (e) {
+        // AI is optional, don't fail the search
+        console.error('[AI] Error:', e.message);
+      }
+    }
+
     res.json(searchResults);
   } catch (err) {
     console.error('[Search] Error:', err);

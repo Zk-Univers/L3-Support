@@ -27,5 +27,6 @@
   "showExcerpt": "显示原文片段",
   "translateTo": "翻译为",
   "translatedLabel": "翻译",
-  "translateFailed": "翻译失败"
+  "translateFailed": "翻译失败",
+  "aiAnswerLabel": "AI 回答"
 }

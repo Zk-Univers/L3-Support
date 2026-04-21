@@ -232,6 +232,38 @@ main {
   font-size: 15px;
 }
 
+/* AI Answer */
+.ai-answer {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border: 1px solid var(--primary-light);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+[data-theme="dark"] .ai-answer {
+  background: linear-gradient(135deg, #1e293b 0%, #0d2818 100%);
+  border-color: var(--border);
+}
+
+.ai-answer-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primary);
+  margin-bottom: 10px;
+}
+
+.ai-answer-text {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+}
 
 /* Loading */
 .loading-section {

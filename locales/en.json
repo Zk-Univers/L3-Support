@@ -27,5 +27,6 @@
   "showExcerpt": "Show raw excerpt",
   "translateTo": "Translate to",
   "translatedLabel": "Translation",
-  "translateFailed": "Translation failed"
+  "translateFailed": "Translation failed",
+  "aiAnswerLabel": "AI Answer"
 }

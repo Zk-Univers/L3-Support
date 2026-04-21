@@ -169,6 +169,26 @@ const SearchUI = (() => {
         return;
       }
 
+      // Render AI answer if available
+      const aiBox = document.getElementById('aiAnswer');
+      if (data.aiAnswer) {
+        aiBox.innerHTML = `
+          <div class="ai-answer-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a4 4 0 0 1 4 4v1a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2V6a4 4 0 0 1 4-4z"/>
+              <path d="M9 18h6"/><path d="M10 22h4"/>
+              <path d="M12 14v4"/>
+            </svg>
+            ${I18n.t('aiAnswerLabel')}
+          </div>
+          <div class="ai-answer-text">${escapeHtml(data.aiAnswer)}</div>
+        `;
+        aiBox.classList.remove('hidden');
+      } else {
+        aiBox.classList.add('hidden');
+        aiBox.innerHTML = '';
+      }
+
       const resultsList = document.getElementById('resultsList');
       resultsList.innerHTML = '';
       data.results.forEach((r) => {
