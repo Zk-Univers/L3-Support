@@ -34,21 +34,48 @@ app.get('/api/search', async (req, res) => {
   try {
     const searchResults = performSearch(query.trim());
 
-    // Generate AI answer from matched documents (non-blocking)
-    if (searchResults.results.length > 0) {
-      try {
-        const aiAnswer = await generateAnswer(query.trim(), searchResults.results, lang);
-        if (aiAnswer) searchResults.aiAnswer = aiAnswer;
-      } catch (e) {
-        // AI is optional, don't fail the search
-        console.error('[AI] Error:', e.message);
-      }
-    }
+    // Strip fullContent before sending to browser (too large)
+    // But keep a copy for AI if needed
+    const fullResults = searchResults.results.map((r) => ({ ...r }));
+    searchResults.results.forEach((r) => delete r.fullContent);
 
     res.json(searchResults);
+
+    // Store full results for the AI endpoint
+    if (fullResults.length > 0) {
+      app.locals.lastSearchResults = fullResults;
+      app.locals.lastSearchQuery = query.trim();
+    }
   } catch (err) {
     console.error('[Search] Error:', err);
     res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// API: AI Answer (called separately, only when AI toggle is on)
+app.get('/api/ai-answer', async (req, res) => {
+  const query = req.query.q;
+  const lang = req.query.lang || 'en';
+
+  if (!query) return res.json({ answer: null });
+
+  // Use stored search results or re-search
+  let results = app.locals.lastSearchResults;
+  if (!results || app.locals.lastSearchQuery !== query.trim()) {
+    const searchResults = performSearch(query.trim());
+    results = searchResults.results;
+  }
+
+  if (!results || results.length === 0) {
+    return res.json({ answer: null });
+  }
+
+  try {
+    const answer = await generateAnswer(query.trim(), results, lang);
+    res.json({ answer, sources: results.slice(0, 3).map((r) => ({ name: r.name, githubUrl: r.githubUrl })) });
+  } catch (e) {
+    console.error('[AI] Error:', e.message);
+    res.json({ answer: null });
   }
 });
 

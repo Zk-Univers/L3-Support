@@ -12,6 +12,86 @@ const SearchUI = (() => {
     if (id) document.getElementById(id).classList.remove('hidden');
   }
 
+  // Format AI answer: bold, tables, bullet points, numbered lists
+  function formatAIAnswer(text) {
+    let html = escapeHtml(text);
+
+    // Bold: **text** → <strong>text</strong>
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // Check if the answer has markdown table (lines with |)
+    const lines = html.split('\n');
+    const tableLines = lines.filter((l) => l.trim().startsWith('|') && l.trim().endsWith('|'));
+    if (tableLines.length >= 2) {
+      // Parse markdown table
+      const parts = [];
+      let inTable = false;
+      let tableRows = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+          // Skip separator rows (|---|---|)
+          if (/^\|[\s\-:]+\|$/.test(trimmed.replace(/\|/g, '|').replace(/[\s\-:]/g, ''))) {
+            continue;
+          }
+          if (!inTable) inTable = true;
+          const cells = trimmed.split('|').filter((c, i, a) => i > 0 && i < a.length - 1).map((c) => c.trim());
+          tableRows.push(cells);
+        } else {
+          if (inTable) {
+            parts.push(buildTable(tableRows));
+            tableRows = [];
+            inTable = false;
+          }
+          parts.push(trimmed);
+        }
+      }
+      if (inTable) parts.push(buildTable(tableRows));
+      html = parts.join('\n');
+    }
+
+    // Bullet points: lines starting with * or - or •
+    html = html.replace(/^[\*\-•]\s+(.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+    // Numbered lists: lines starting with 1. 2. etc
+    html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+    // Wrap consecutive <li> not already in <ul> into <ol>
+    html = html.replace(/(?<!<\/ul>)(<li>.*?<\/li>\n?)+/g, (match) => {
+      if (match.includes('<ul>')) return match;
+      return '<ol>' + match + '</ol>';
+    });
+
+    // Paragraphs: double newlines
+    html = html.replace(/\n\n+/g, '</p><p>');
+    // Single newlines (not inside lists/tables)
+    html = html.replace(/\n/g, '<br>');
+
+    // Clean up empty tags
+    html = html.replace(/<p><\/p>/g, '');
+    html = '<p>' + html + '</p>';
+    html = html.replace(/<p>(<(?:ul|ol|table))/g, '$1');
+    html = html.replace(/(<\/(?:ul|ol|table)>)<\/p>/g, '$1');
+
+    return html;
+  }
+
+  function buildTable(rows) {
+    if (rows.length === 0) return '';
+    let table = '<table class="ai-table"><thead><tr>';
+    // First row is header
+    rows[0].forEach((cell) => { table += `<th>${cell}</th>`; });
+    table += '</tr></thead><tbody>';
+    for (let i = 1; i < rows.length; i++) {
+      table += '<tr>';
+      rows[i].forEach((cell) => { table += `<td>${cell}</td>`; });
+      table += '</tr>';
+    }
+    table += '</tbody></table>';
+    return table;
+  }
+
   // Detect if text contains CJK or non-Latin characters
   function hasForeignText(text) {
     return /[\u2E80-\u9FFF\uF900-\uFAFF\u3040-\u309F\u30A0-\u30FF]/.test(text);
@@ -145,7 +225,8 @@ const SearchUI = (() => {
     return chip;
   }
 
-  async function search(query) {
+  // Search only (no AI)
+  async function search(query, withAI = false) {
     if (!query || query.trim().length === 0) {
       showSection('welcomeSection');
       return;
@@ -153,6 +234,11 @@ const SearchUI = (() => {
 
     currentQuery = query;
     showSection('loadingSection');
+
+    // Always hide AI box at start
+    const aiBox = document.getElementById('aiAnswer');
+    aiBox.classList.add('hidden');
+    aiBox.innerHTML = '';
 
     try {
       const lang = I18n.getLang();
@@ -169,26 +255,7 @@ const SearchUI = (() => {
         return;
       }
 
-      // Render AI answer if available
-      const aiBox = document.getElementById('aiAnswer');
-      if (data.aiAnswer) {
-        aiBox.innerHTML = `
-          <div class="ai-answer-label">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2a4 4 0 0 1 4 4v1a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2V6a4 4 0 0 1 4-4z"/>
-              <path d="M9 18h6"/><path d="M10 22h4"/>
-              <path d="M12 14v4"/>
-            </svg>
-            ${I18n.t('aiAnswerLabel')}
-          </div>
-          <div class="ai-answer-text">${escapeHtml(data.aiAnswer)}</div>
-        `;
-        aiBox.classList.remove('hidden');
-      } else {
-        aiBox.classList.add('hidden');
-        aiBox.innerHTML = '';
-      }
-
+      // Render search results immediately
       const resultsList = document.getElementById('resultsList');
       resultsList.innerHTML = '';
       data.results.forEach((r) => {
@@ -208,10 +275,77 @@ const SearchUI = (() => {
         });
         document.getElementById('relatedSection').classList.remove('hidden');
       }
+
+      // Fetch AI answer separately if toggle is on
+      if (withAI) {
+        fetchAIAnswer(query, lang, data.results);
+      }
     } catch (e) {
       console.error('[Search] Error:', e);
       showSection('noResultsSection');
     }
+  }
+
+  // Fetch AI answer separately (non-blocking, after results are shown)
+  async function fetchAIAnswer(query, lang, results) {
+    const aiBox = document.getElementById('aiAnswer');
+    // Show loading state
+    aiBox.innerHTML = `
+      <div class="ai-answer-label">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2a4 4 0 0 1 4 4v1a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2V6a4 4 0 0 1 4-4z"/>
+          <path d="M9 18h6"/><path d="M10 22h4"/>
+          <path d="M12 14v4"/>
+        </svg>
+        ${I18n.t('aiAnswerLabel')}
+      </div>
+      <div class="ai-answer-text"><span class="ai-loading">${I18n.t('aiLoading')}</span></div>
+    `;
+    aiBox.classList.remove('hidden');
+
+    try {
+      const res = await fetch(`/api/ai-answer?q=${encodeURIComponent(query)}&lang=${lang}`);
+      const data = await res.json();
+
+      if (data.answer) {
+        const sources = (data.sources || results.slice(0, 3)).map((r) =>
+          `<a href="${escapeHtml(r.githubUrl)}" target="_blank" rel="noopener" class="ai-source-link">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            ${escapeHtml(r.name)}
+          </a>`
+        ).join('');
+
+        aiBox.innerHTML = `
+          <div class="ai-answer-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a4 4 0 0 1 4 4v1a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2V6a4 4 0 0 1 4-4z"/>
+              <path d="M9 18h6"/><path d="M10 22h4"/>
+              <path d="M12 14v4"/>
+            </svg>
+            ${I18n.t('aiAnswerLabel')}
+          </div>
+          <div class="ai-answer-text">${formatAIAnswer(data.answer)}</div>
+          <div class="ai-sources">
+            <span class="ai-sources-label">${I18n.t('sourcesLabel')}</span>
+            ${sources}
+          </div>
+        `;
+      } else {
+        aiBox.classList.add('hidden');
+        aiBox.innerHTML = '';
+      }
+    } catch (e) {
+      aiBox.classList.add('hidden');
+      aiBox.innerHTML = '';
+    }
+  }
+
+  function isAIEnabled() {
+    const toggle = document.getElementById('aiToggle');
+    return toggle && toggle.checked;
   }
 
   function escapeHtml(text) {
@@ -220,5 +354,5 @@ const SearchUI = (() => {
     return div.innerHTML;
   }
 
-  return { search, getCurrentQuery };
+  return { search, getCurrentQuery, isAIEnabled };
 })();

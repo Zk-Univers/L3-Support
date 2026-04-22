@@ -28,5 +28,8 @@
   "translateTo": "Translate to",
   "translatedLabel": "Translation",
   "translateFailed": "Translation failed",
-  "aiAnswerLabel": "AI Answer"
+  "aiAnswerLabel": "AI Answer",
+  "sourcesLabel": "Sources:",
+  "aiToggleLabel": "AI Assist",
+  "aiLoading": "Generating answer..."
 }

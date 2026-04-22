@@ -9,27 +9,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   const searchInput = document.getElementById('searchInput');
   const searchBtn = document.getElementById('searchBtn');
 
-  // Search on button click
+  // Search on button click (with AI if toggle is on)
   searchBtn.addEventListener('click', () => {
-    SearchUI.search(searchInput.value);
+    SearchUI.search(searchInput.value, SearchUI.isAIEnabled());
   });
 
-  // Search on Enter key
+  // Search on Enter key (with AI if toggle is on)
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      SearchUI.search(searchInput.value);
+      SearchUI.search(searchInput.value, SearchUI.isAIEnabled());
     }
   });
 
-  // Debounced live search (after 500ms of inactivity)
+  // Debounced live search (NO AI - only on explicit search)
   let debounceTimer;
   searchInput.addEventListener('input', () => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       if (searchInput.value.trim().length >= 3) {
-        SearchUI.search(searchInput.value);
+        SearchUI.search(searchInput.value, false);
       }
     }, 500);
+  });
+
+  // Restore AI toggle state
+  const aiToggle = document.getElementById('aiToggle');
+  const savedAI = localStorage.getItem('kb-ai-toggle');
+  if (savedAI === 'true') aiToggle.checked = true;
+  aiToggle.addEventListener('change', () => {
+    localStorage.setItem('kb-ai-toggle', aiToggle.checked);
   });
 
   // Load stats

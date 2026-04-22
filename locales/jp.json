@@ -28,5 +28,8 @@
   "translateTo": "翻訳先",
   "translatedLabel": "翻訳",
   "translateFailed": "翻訳に失敗しました",
-  "aiAnswerLabel": "AI 回答"
+  "aiAnswerLabel": "AI 回答",
+  "sourcesLabel": "出典：",
+  "aiToggleLabel": "AI アシスト",
+  "aiLoading": "回答を生成中..."
 }

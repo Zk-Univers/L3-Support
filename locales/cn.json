@@ -28,5 +28,8 @@
   "translateTo": "翻译为",
   "translatedLabel": "翻译",
   "translateFailed": "翻译失败",
-  "aiAnswerLabel": "AI 回答"
+  "aiAnswerLabel": "AI 回答",
+  "sourcesLabel": "来源：",
+  "aiToggleLabel": "AI 助手",
+  "aiLoading": "正在生成回答..."
 }
